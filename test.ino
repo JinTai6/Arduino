@@ -1,3 +1,5 @@
+// 我们使用的是ESP32的开发板，用的开发软件为：Arduino
+// 测量温度和湿度的是DHT11，测量土壤温度的是DS18B20传感器，测量底层土壤湿度的的：YL-69，测量表层土壤湿度的不知道是什么型号
 #define BLINKER_WIFI
 #include <Blinker.h>
 #include <DHT.h>

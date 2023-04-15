@@ -89,11 +89,32 @@ dht_soil.begin();// 初始化土壤湿度传感器
 lcd.begin(); // 初始化液晶屏
 }
 
+bool checkFlame() {
+  int flameValue = digitalRead(FLAMEPIN);
+  if (flameValue == LOW) {  // 火焰检测到，返回真
+    return true;
+  } else {  // 火焰未检测到，返回假
+    return false;
+  }
+}
+
+void alert(bool flameDetected) {
+  if (flameDetected) {  // 火焰检测到
+    digitalWrite(BUZZERPIN, HIGH);  // 打开蜂鸣器
+    digitalWrite(LEDPIN, HIGH);     // 打开LED灯
+  } else {  // 火焰未检测到
+    digitalWrite(BUZZERPIN, LOW);   // 关闭蜂鸣器
+    digitalWrite(LEDPIN, LOW);      // 关闭LED灯
+  }
+}
+
 void loop()
 {
 
 //检测是否存在火焰
-flame();
+bool flameDetected = checkFlame();  // 检测火焰状态
+  alert(flameDetected);  // 控制蜂鸣器和LED灯报警
+  delay(100);  // 等待一段时间后继续进行检测
 
 Blinker.run();// 运行Blinker库
 // 读取DHT传感器、LDR传感器和土壤湿度传感器的数据
@@ -119,7 +140,7 @@ float t_soil = dht_soil.readTemperature();
   lcd.print(h);                    // 打印湿度值
   lcd.print("%");                  // 打印湿度单位 "%"
   
-  delay(5000);                     // 延迟5秒
+  delay(1000);                     // 延迟5秒
 // 如果无法读取DHT传感器的数据
 if (isnan(h) || isnan(t)) {
 BLINKER_LOG("Failed to read from DHT sensor!");

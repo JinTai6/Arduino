@@ -6,6 +6,7 @@
 //16，26,27是火焰传感器，蜂鸣器，红色LED灯用来实现火焰报警器的功能
 //34，26,27是烟雾传感器，蜂鸣器，红色LED灯用来实现烟雾报警器的功能
 //22和21号针脚代表I2C的SCL和SDA来实现通信
+//11和10号针脚是两个LED灯用于植物的补光，在点灯APP中的按键实现开关
 #define BLINKER_WIFI
 #include <Blinker.h>
 #include <DHT.h>
@@ -21,6 +22,8 @@
 #define SMOKEPIN 34 //烟雾传感器引脚
 #define BUZZERPIN 26 // 蜂鸣器引脚
 #define LEDPIN 27 // LED引脚
+#define LEDPIN1 11 //1号LED补光灯针脚
+#define LEDPIN2 10 //2号LED补光灯针脚
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 

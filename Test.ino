@@ -46,7 +46,6 @@ float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 =
 float soil_temp_read = 0, soil_humi_read = 0;
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
-const int SMOKE_THRESHOLD = 2000;
 
 void heartbeat()
 {
@@ -88,43 +87,6 @@ dht.begin();// 初始化DHT传感器
 dht_soil.begin();// 初始化土壤湿度传感器
 
 lcd.begin(); // 初始化液晶屏
-}
-
-void flame() {
-  static unsigned long flame_start_time = 0; // 火焰开始检测时间
-  static int flame_alert_level = 0; // 火焰报警等级，从0-5
-  static int flame_detected = 0; // 是否检测到火焰
-
-  int flame_reading = digitalRead(FLAMEPIN); // 读取火焰传感器数值
-
-  if (flame_reading == LOW) { // 如果检测到火焰
-    if (flame_detected == 0) { // 如果之前没有检测到火焰
-      flame_start_time = millis(); // 记录检测到火焰的时间
-    }
-    flame_detected = 1; // 设置已检测到火焰
-    unsigned long flame_duration = millis() - flame_start_time; // 计算检测到火焰的持续时间
-    if (flame_duration < 5000) { // 如果持续时间小于5秒
-      flame_alert_level = map(flame_duration, 0, 5000, 0, 5); // 根据持续时间计算火焰报警等级
-    } else { // 如果持续时间大于等于5秒
-      flame_alert_level = 5; // 设置火焰报警等级为5
-    }
-  } else { // 如果没有检测到火焰
-    flame_detected = 0; // 设置未检测到火焰
-    flame_alert_level = 0; // 设置火焰报警等级为0
-  }
-
-  if (flame_alert_level > 0) { // 如果火焰报警等级大于0
-    digitalWrite(LEDPIN, HIGH); // 点亮红色LED灯
-    for (int i = 0; i < flame_alert_level; i++) { // 按照火焰报警等级，循环控制蜂鸣器响应的次数和间隔
-      digitalWrite(BUZZERPIN, HIGH);
-      delay(100);
-      digitalWrite(BUZZERPIN, LOW);
-      delay(100);
-    }
-  } else { // 如果火焰报警等级为0
-    digitalWrite(LEDPIN, LOW); // 关闭红色LED灯
-    digitalWrite(BUZZERPIN, LOW); // 关闭蜂鸣器
-  }
 }
 
 void loop()

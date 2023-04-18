@@ -1,4 +1,4 @@
-define BLINKER_WIFI
+#define BLINKER_WIFI
 #include <Blinker.h>
 #include <DHT.h>
 #include <Wire.h>
@@ -20,6 +20,8 @@ LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
 #define DHTTYPE DHT11 // 温湿度传感器型号
 #define DHTTYPE_SOIL DHT11 // 土壤温湿度传感器型号
+
+#define SMOKE_THRESHOLD 1000 // 设置烟雾传感器阈值
 
 char auth[] = "40a629d880e0"; // Blinker授权码
 char ssid[] = "JinTai"; // WIFI名称
@@ -81,6 +83,7 @@ dht.begin();// 初始化DHT传感器
 dht_soil.begin();// 初始化土壤湿度传感器
 
 lcd.begin(); // 初始化液晶屏
+
 }
 
 bool checkFlame() {
@@ -102,9 +105,22 @@ void alert(bool flameDetected) {
   }
 }
 
+void smokeAlarm() {
+  uint32_t adcValue = analogRead(34); // 读取烟雾传感器的模拟值
+  if (adcValue > SMOKE_THRESHOLD) { // 判断是否超过阈值
+    digitalWrite(27, HIGH); // 开启红色LED灯
+    tone(26, 2000); // 发出蜂鸣器警报
+    delay(500); // 等待500毫秒
+    noTone(26); // 停止蜂鸣器警报
+  } else {
+    digitalWrite(27, LOW); // 关闭红色LED灯
+  }
+}
+
 void loop()
 {
-
+// 检测烟雾
+  smokeAlarm();
 //检测是否存在火焰
 bool flameDetected = checkFlame();  // 检测火焰状态
   alert(flameDetected);  // 控制蜂鸣器和LED灯报警

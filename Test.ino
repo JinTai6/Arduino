@@ -7,6 +7,7 @@
 //34，26,27是烟雾传感器，蜂鸣器，红色LED灯用来实现烟雾报警器的功能
 //22和21号针脚代表I2C的SCL和SDA来实现通信
 //11和10号针脚是两个LED灯用于植物的补光，在点灯APP中的按键实现开关
+//39号针脚用来测量设备电压
 #define BLINKER_WIFI
 #include <Blinker.h>
 #include <DHT.h>
@@ -24,6 +25,7 @@
 #define LEDPIN 27 // LED引脚
 #define LEDPIN1 11 //1号LED补光灯针脚
 #define LEDPIN2 10 //2号LED补光灯针脚
+#define V_PIN 39 //测量设备电压要用到的针脚
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
@@ -43,6 +45,7 @@ BlinkerNumber SOIL1("soil1"); // 土壤湿度数据流1
 BlinkerNumber SOIL2("soil2"); // 土壤湿度数据流2
 BlinkerNumber SOIL_TEMP("soil_temp");// 土壤温度数据流
 BlinkerNumber SOIL_HUMI("soil_humi");// 土壤湿度数据流2
+BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 DHT dht_soil(DHTPIN_SOIL, DHTTYPE_SOIL); // 土壤温湿度传感器对象
@@ -208,6 +211,13 @@ BLINKER_LOG("Light: ", light_read, " %");
 BLINKER_LOG("Soil Moisture 1: ", soil_read1, " %");
 BLINKER_LOG("Soil Moisture 2: ", soil_read2, " %");
 
+// 读取ESP32的电压值
+  int sensorValue = analogRead(39);
+
+  // 将读取到的ADC值转换成电压值
+  float voltage = sensorValue / 4095.0 * 3.3;
+VOLTAGE.print(voltage);   //将电压值传输到Blinker云平台
+
 // 将湿度、温度、光照和土壤湿度1的数据发送到点灯APP中
 HUMI.print(humi_read);
 TEMP.print(temp_read);
@@ -216,5 +226,7 @@ SOIL1.print(soil_read1);
 SOIL2.print(soil_read2);
 SOIL_TEMP.print(soil_temp_read);
 SOIL_HUMI.print(soil_humi_read);
+
+delay(200);
 }
 }

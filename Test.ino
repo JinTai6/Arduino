@@ -2,17 +2,20 @@
 //我们使用的是ESP32开发板
 //15号引脚是DHT11温湿度传感器用来测量室内的温度和湿度，36号针脚是管敏电阻传感器来测量光照强度
 //32和33号针脚是YL-69土壤湿度传感器，分别来测量土壤的深层和表层的湿度
-//4号针脚是DHT11传感器用来测量土壤的温度和表层湿度（现在预计想要把这个DHT11缩测得的湿度删除）
+//4号针脚是DHT11传感器用来测量土壤的温度和表层湿度（现在预计想要把这个DHT11所测得的湿度删除）
 //16，26,27是火焰传感器，蜂鸣器，红色LED灯用来实现火焰报警器的功能
 //34，26,27是烟雾传感器，蜂鸣器，红色LED灯用来实现烟雾报警器的功能
 //22和21号针脚代表I2C的SCL和SDA来实现通信
 //11和10号针脚是两个LED灯用于植物的补光，在点灯APP中的按键实现开关
 //39号针脚用来测量设备电压
+//32的I2C的地址是和LCD 1602A的屏幕的显示
+//0x67的I2C地址是用于BMP180用来测量大气压强和海拔高度的使用
 #define BLINKER_WIFI
 #include <Blinker.h>
 #include <DHT.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <Adafruit_BMP085.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -28,6 +31,8 @@
 #define V_PIN 39 //测量设备电压要用到的针脚
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
+
+Adafruit_BMP085 bmp; //设置BMP180传感器的型号
 
 #define DHTTYPE DHT11 // 温湿度传感器型号
 #define DHTTYPE_SOIL DHT11 // 土壤温湿度传感器型号
@@ -46,6 +51,8 @@ BlinkerNumber SOIL2("soil2"); // 土壤湿度数据流2
 BlinkerNumber SOIL_TEMP("soil_temp");// 土壤温度数据流
 BlinkerNumber SOIL_HUMI("soil_humi");// 土壤湿度数据流2
 BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
+BlinkerNumber PRE("pressure"); //大气压强
+BlinkerNumber ALTITUDE("altitude"); //海拔高度
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 DHT dht_soil(DHTPIN_SOIL, DHTTYPE_SOIL); // 土壤温湿度传感器对象
@@ -95,6 +102,11 @@ dht.begin();// 初始化DHT传感器
 dht_soil.begin();// 初始化土壤湿度传感器
 
 lcd.begin(); // 初始化液晶屏
+
+if (!bmp.begin(0x76)) {
+    Serial.println("Could not find a valid BMP085 sensor, check wiring!");
+    while (1) {}
+  }
 
 }
 
@@ -151,6 +163,9 @@ int s1 = analogRead(SOILPIN1);
 int s2 = analogRead(SOILPIN2);
 float h_soil = dht_soil.readHumidity();
 float t_soil = dht_soil.readTemperature();
+float temperature = bmp.readTemperature();
+float pressure = bmp.readPressure();
+float altitude = bmp.readAltitude();
 
   lcd.setCursor(0,0);              // 将光标移动到第一行第一列
   lcd.print("Temp:");              // 打印"Temp:"
@@ -217,6 +232,9 @@ BLINKER_LOG("Soil Moisture 2: ", soil_read2, " %");
   // 将读取到的ADC值转换成电压值
   float voltage = sensorValue / 4095.0 * 3.3;
 VOLTAGE.print(voltage);   //将电压值传输到Blinker云平台
+
+PRE.print(pressure);
+ALTITUDE.print(altitude);
 
 // 将湿度、温度、光照和土壤湿度1的数据发送到点灯APP中
 HUMI.print(humi_read);

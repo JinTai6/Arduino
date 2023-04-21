@@ -15,7 +15,6 @@
 #include <DHT.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#include <Adafruit_BMP085.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -32,8 +31,6 @@
 #define RAIN_SENSOR_PIN 35 //雨滴传感器针脚
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
-
-Adafruit_BMP085 bmp; //设置BMP180传感器的型号
 
 #define DHTTYPE DHT11 // 温湿度传感器型号
 #define DHTTYPE_SOIL DHT11 // 土壤温湿度传感器型号
@@ -52,8 +49,6 @@ BlinkerNumber SOIL2("soil2"); // 土壤湿度数据流2
 BlinkerNumber SOIL_TEMP("soil_temp");// 土壤温度数据流
 BlinkerNumber SOIL_HUMI("soil_humi");// 土壤湿度数据流2
 BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
-BlinkerNumber PRE("pressure"); //大气压强
-BlinkerNumber ALTITUDE("altitude"); //海拔高度
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 DHT dht_soil(DHTPIN_SOIL, DHTTYPE_SOIL); // 土壤温湿度传感器对象
@@ -107,11 +102,6 @@ dht_soil.begin();// 初始化土壤湿度传感器
 
 lcd.begin(); // 初始化液晶屏
 
-if (!bmp.begin(0x76)) {
-    Serial.println("Could not find a valid BMP085 sensor, check wiring!");
-    while (1) {}
-  }
-
 }
 
 bool checkFlame() {
@@ -144,6 +134,7 @@ void smokeAlarm() {
     digitalWrite(27, LOW); // 关闭红色LED灯
   }
 }
+
 
 // 检测雨滴传感器是否有水滴降落
 bool check_rain_sensor() {
@@ -183,9 +174,6 @@ int s1 = analogRead(SOILPIN1);
 int s2 = analogRead(SOILPIN2);
 float h_soil = dht_soil.readHumidity();
 float t_soil = dht_soil.readTemperature();
-float temperature = bmp.readTemperature();
-float pressure = bmp.readPressure();
-float altitude = bmp.readAltitude();
 
   lcd.setCursor(0,0);              // 将光标移动到第一行第一列
   lcd.print("Temp:");              // 打印"Temp:"
@@ -253,9 +241,6 @@ BLINKER_LOG("Soil Moisture 2: ", soil_read2, " %");
   float voltage = sensorValue / 4095.0 * 3.3;
 VOLTAGE.print(voltage);   //将电压值传输到Blinker云平台
 
-PRE.print(pressure);
-ALTITUDE.print(altitude);
-
 // 将湿度、温度、光照和土壤湿度1的数据发送到点灯APP中
 HUMI.print(humi_read);
 TEMP.print(temp_read);
@@ -271,6 +256,6 @@ SOIL_HUMI.print(soil_humi_read);
   } else {
   }
 
-delay(200);
+delay(500);
 }
 }

@@ -15,6 +15,8 @@
 #define LEDPIN 27 // LED引脚
 #define LEDPIN1 11 //1号LED补光灯针脚
 #define LEDPIN2 10 //2号LED补光灯针脚
+#define V_PIN 39 //测量设备电压要用到的针脚
+#define RAIN_SENSOR_PIN 35 //雨滴传感器针脚
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
@@ -34,6 +36,7 @@ BlinkerNumber SOIL1("soil1"); // 土壤湿度数据流1
 BlinkerNumber SOIL2("soil2"); // 土壤湿度数据流2
 BlinkerNumber SOIL_TEMP("soil_temp");// 土壤温度数据流
 BlinkerNumber SOIL_HUMI("soil_humi");// 土壤湿度数据流2
+BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 DHT dht_soil(DHTPIN_SOIL, DHTTYPE_SOIL); // 土壤温湿度传感器对象
@@ -42,6 +45,9 @@ float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 =
 float soil_temp_read = 0, soil_humi_read = 0;
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
+
+// 定义雨滴传感器检测阈值
+#define RAIN_THRESHOLD 800
 
 void heartbeat()
 {
@@ -114,6 +120,23 @@ void smokeAlarm() {
     noTone(26); // 停止蜂鸣器警报
   } else {
     digitalWrite(27, LOW); // 关闭红色LED灯
+  }
+}
+
+
+// 检测雨滴传感器是否有水滴降落
+bool check_rain_sensor() {
+  // 将A0口配置为模拟输入模式
+  pinMode(RAIN_SENSOR_PIN, INPUT);
+
+  // 读取A0口输入电压值
+  int sensor_value = digitalRead(RAIN_SENSOR_PIN);
+
+  // 判断输入电压是否超过阈值，若超过则说明有水滴降落，返回true，否则返回false
+  if (sensor_value == LOW) {
+    return true;
+  } else {
+    return false;
   }
 }
 
@@ -199,6 +222,13 @@ BLINKER_LOG("Light: ", light_read, " %");
 BLINKER_LOG("Soil Moisture 1: ", soil_read1, " %");
 BLINKER_LOG("Soil Moisture 2: ", soil_read2, " %");
 
+// 读取ESP32的电压值
+  int sensorValue = analogRead(39);
+
+  // 将读取到的ADC值转换成电压值
+  float voltage = sensorValue / 4095.0 * 3.3;
+VOLTAGE.print(voltage);   //将电压值传输到Blinker云平台
+
 // 将湿度、温度、光照和土壤湿度1的数据发送到点灯APP中
 HUMI.print(humi_read);
 TEMP.print(temp_read);
@@ -207,5 +237,13 @@ SOIL1.print(soil_read1);
 SOIL2.print(soil_read2);
 SOIL_TEMP.print(soil_temp_read);
 SOIL_HUMI.print(soil_humi_read);
+
+// 检测雨滴传感器是否有水滴降落
+  if (check_rain_sensor()) {
+    Serial.println("下雨了哦！");
+  } else {
+  }
+
+delay(500);
 }
 }

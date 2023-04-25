@@ -15,7 +15,6 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_BMP085.h>
-#include <DallasTemperature.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -32,7 +31,7 @@
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
-Adafruit_BMP085 bmp; //设置BMP180传感器的型号
+// Adafruit_BMP085 bmp; //设置BMP180传感器的型号
 
 #define DHTTYPE DHT11 // 温湿度传感器型号
 
@@ -51,10 +50,7 @@ BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
 BlinkerNumber SOILTEMP("soilTemp"); //土壤温度
-
-// 新建组件对象
-BlinkerButton Button1("btn-abc");
-BlinkerNumber Number1("num-abc");
+BlinkerNumber SOUND("soundLevel"); //环境分贝
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 
@@ -62,21 +58,6 @@ float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 =
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
 int counter = 0;
-
-//按下按键即会执行该函数
-void button1_callback(const String & state)
-{
-    BLINKER_LOG("get button state: ", state);
-    digitalWrite(LED, !digitalRead(LED));
-}
-
-// 如果未绑定的组件被触发，则会执行其中内容
-void dataRead(const String & data)
-{
-    BLINKER_LOG("Blinker readString: ", data);
-    counter++;
-    Number1.print(counter);
-}
 
 void heartbeat()
 {
@@ -115,10 +96,10 @@ dht.begin();// 初始化DHT传感器
 
 lcd.begin(); // 初始化液晶屏
 
-if (!bmp.begin(0x76)) {
-    Serial.println("Could not find a valid BMP085 sensor, check wiring!");
-    while (1) {}
-  }
+// if (!bmp.begin(0x76)) {
+//     Serial.println("Could not find a valid BMP085 sensor, check wiring!");
+//     while (1) {}
+//   }
 
 }
 
@@ -172,11 +153,6 @@ bool check_rain_sensor() {
     return false;
   }
 
-
-    pinMode(LED, OUTPUT);
-    digitalWrite(LED, HIGH);
-    Blinker.attachData(dataRead);
-    Button1.attach(button1_callback);
 }
 
 void loop()
@@ -199,9 +175,9 @@ float t = dht.readTemperature();
 int l = analogRead(LDRPIN);
 int s1 = analogRead(SOILPIN1);
 int s2 = analogRead(SOILPIN2);
-float temperature = bmp.readTemperature();
-float pressure = bmp.readPressure();
-float altitude = bmp.readAltitude();
+// float temperature = bmp.readTemperature();
+// float pressure = bmp.readPressure();
+// float altitude = bmp.readAltitude();
 
   lcd.setCursor(0,0);              // 将光标移动到第一行第一列
   lcd.print("Temp:");              // 打印"Temp:"
@@ -247,8 +223,8 @@ BLINKER_LOG("Soil Moisture 2: ", soil_read2, " %");
 
 VOLTAGE.print(voltage);   //将电压值传输到Blinker云平台
 
-PRE.print(pressure);
-ALTITUDE.print(altitude);
+// PRE.print(pressure);
+// ALTITUDE.print(altitude);
 
 // 将湿度、温度、光照和土壤湿度1的数据发送到点灯APP中
 HUMI.print(humi_read);

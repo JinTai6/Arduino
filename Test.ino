@@ -15,6 +15,7 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_BMP085.h>
+#include <DallasTemperature.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -24,8 +25,8 @@
 #define SMOKEPIN 34 //烟雾传感器引脚
 #define BUZZERPIN 26 // 蜂鸣器引脚
 #define LEDPIN 27 // LED引脚
-#define LEDPIN1 11 //1号LED补光灯针脚
-#define LEDPIN2 10 //2号LED补光灯针脚
+#define LED 12 //1号LED补光灯针脚
+#define LED1 14 //2号LED补光灯针脚
 #define V_PIN 39 //测量设备电压要用到的针脚
 #define RAIN_SENSOR_PIN 35 //雨滴传感器针脚
 
@@ -49,12 +50,33 @@ BlinkerNumber SOIL2("soil2"); // 土壤湿度数据流2
 BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
+BlinkerNumber SOILTEMP("soilTemp"); //土壤温度
+
+// 新建组件对象
+BlinkerButton Button1("btn-abc");
+BlinkerNumber Number1("num-abc");
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 
 float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0;
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
+int counter = 0;
+
+//按下按键即会执行该函数
+void button1_callback(const String & state)
+{
+    BLINKER_LOG("get button state: ", state);
+    digitalWrite(LED, !digitalRead(LED));
+}
+
+// 如果未绑定的组件被触发，则会执行其中内容
+void dataRead(const String & data)
+{
+    BLINKER_LOG("Blinker readString: ", data);
+    counter++;
+    Number1.print(counter);
+}
 
 void heartbeat()
 {
@@ -149,6 +171,12 @@ bool check_rain_sensor() {
   } else {
     return false;
   }
+
+
+    pinMode(LED, OUTPUT);
+    digitalWrite(LED, HIGH);
+    Blinker.attachData(dataRead);
+    Button1.attach(button1_callback);
 }
 
 void loop()

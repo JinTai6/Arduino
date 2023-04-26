@@ -15,6 +15,8 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_BMP085.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -28,6 +30,11 @@
 #define LED1 14 //2号LED补光灯针脚
 #define V_PIN 39 //测量设备电压要用到的针脚
 #define RAIN_SENSOR_PIN 35 //雨滴传感器针脚
+#define ONE_WIRE_BUS 4 // 定义DS18B20的引脚为4
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+const int SOUND_PIN = 2; // 声音传感器连接的引脚
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
@@ -49,7 +56,7 @@ BlinkerNumber SOIL2("soil2"); // 土壤湿度数据流2
 BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
-BlinkerNumber SOILTEMP("soilTemp"); //土壤温度
+BlinkerNumber SOILTEMP("soil_temp"); //土壤温度
 BlinkerNumber SOUND("soundLevel"); //环境分贝
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
@@ -77,6 +84,13 @@ Blinker.dataStorage("soil1", soil_read1); // 存储土壤湿度数据1
 Blinker.dataStorage("soil2", soil_read2); // 存储土壤湿度数据2
 }
 
+float getSoundLevel() {
+  int sensorValue = analogRead(SOUND_PIN);
+  float voltage = sensorValue * (5.0 / 1023.0); // 将读数转换为电压值
+  float soundLevel = 20 * log10(voltage / 0.001); // 将电压值转换为分贝值
+  return soundLevel;
+}
+
 void setup()
 {
 
@@ -100,6 +114,8 @@ lcd.begin(); // 初始化液晶屏
 //     Serial.println("Could not find a valid BMP085 sensor, check wiring!");
 //     while (1) {}
 //   }
+
+sensors.begin();
 
 }
 
@@ -238,6 +254,13 @@ SOIL2.print(soil_read2);
     Serial.println("下雨了哦！");
   } else {
   }
+
+sensors.requestTemperatures();
+float soil_temp = sensors.getTempCByIndex(0);
+SOILTEMP.print(soil_temp);
+
+float soundLevel = getSoundLevel();
+SOUND.print(soundLevel);
 
 Blinker.delay(500);
 delay(500);

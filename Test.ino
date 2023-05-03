@@ -17,6 +17,7 @@
 #include <Adafruit_BMP085.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <Arduino.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -34,11 +35,9 @@
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
-const int SOUND_PIN = 2; // 声音传感器连接的引脚
-
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
-// Adafruit_BMP085 bmp; //设置BMP180传感器的型号
+Adafruit_BMP085 bmp; //设置BMP180传感器的型号
 
 #define DHTTYPE DHT11 // 温湿度传感器型号
 
@@ -57,7 +56,6 @@ BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
 BlinkerNumber SOILTEMP("soil_temp"); //土壤温度
-BlinkerNumber SOUND("soundLevel"); //环境分贝
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 
@@ -84,13 +82,6 @@ Blinker.dataStorage("soil1", soil_read1); // 存储土壤湿度数据1
 Blinker.dataStorage("soil2", soil_read2); // 存储土壤湿度数据2
 }
 
-float getSoundLevel() {
-  int sensorValue = analogRead(SOUND_PIN);
-  float voltage = sensorValue * (5.0 / 1023.0); // 将读数转换为电压值
-  float soundLevel = 20 * log10(voltage / 0.001); // 将电压值转换为分贝值
-  return soundLevel;
-}
-
 void setup()
 {
 
@@ -110,10 +101,10 @@ dht.begin();// 初始化DHT传感器
 
 lcd.begin(); // 初始化液晶屏
 
-// if (!bmp.begin(0x76)) {
-//     Serial.println("Could not find a valid BMP085 sensor, check wiring!");
-//     while (1) {}
-//   }
+if (!bmp.begin(0x76)) {
+    Serial.println("Could not find a valid BMP085 sensor, check wiring!");
+    while (1) {}
+  }
 
 sensors.begin();
 
@@ -191,9 +182,9 @@ float t = dht.readTemperature();
 int l = analogRead(LDRPIN);
 int s1 = analogRead(SOILPIN1);
 int s2 = analogRead(SOILPIN2);
-// float temperature = bmp.readTemperature();
-// float pressure = bmp.readPressure();
-// float altitude = bmp.readAltitude();
+float temperature = bmp.readTemperature();
+float pressure = bmp.readPressure();
+float altitude = bmp.readAltitude();
 
   lcd.setCursor(0,0);              // 将光标移动到第一行第一列
   lcd.print("Temp:");              // 打印"Temp:"
@@ -239,8 +230,8 @@ BLINKER_LOG("Soil Moisture 2: ", soil_read2, " %");
 
 VOLTAGE.print(voltage);   //将电压值传输到Blinker云平台
 
-// PRE.print(pressure);
-// ALTITUDE.print(altitude);
+PRE.print(pressure);
+ALTITUDE.print(altitude);
 
 // 将湿度、温度、光照和土壤湿度1的数据发送到点灯APP中
 HUMI.print(humi_read);
@@ -258,9 +249,6 @@ SOIL2.print(soil_read2);
 sensors.requestTemperatures();
 float soil_temp = sensors.getTempCByIndex(0);
 SOILTEMP.print(soil_temp);
-
-float soundLevel = getSoundLevel();
-SOUND.print(soundLevel);
 
 Blinker.delay(500);
 delay(500);

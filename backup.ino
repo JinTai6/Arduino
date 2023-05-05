@@ -4,6 +4,9 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_BMP085.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Arduino.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -13,10 +16,13 @@
 #define SMOKEPIN 34 //烟雾传感器引脚
 #define BUZZERPIN 26 // 蜂鸣器引脚
 #define LEDPIN 27 // LED引脚
-#define LEDPIN1 11 //1号LED补光灯针脚
-#define LEDPIN2 10 //2号LED补光灯针脚
+#define LED 12 //1号LED补光灯针脚
+#define LED1 14 //2号LED补光灯针脚
 #define V_PIN 39 //测量设备电压要用到的针脚
 #define RAIN_SENSOR_PIN 35 //雨滴传感器针脚
+#define ONE_WIRE_BUS 4 // 定义DS18B20的引脚为4
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
@@ -38,12 +44,31 @@ BlinkerNumber SOIL2("soil2"); // 土壤湿度数据流2
 BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
+BlinkerNumber SOILTEMP("soil_temp"); //土壤温度
+
+BlinkerButton Button1("btn2");
+BlinkerButton Button2("btn1");
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 
 float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0;
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
+int counter = 0;
+
+const int THRESHOLD = 15;  // 设定的光照强度阈值
+
+// 按下按键即会执行该函数
+void button1_callback(const String & state) {
+BLINKER_LOG("get button state: ", state);
+digitalWrite(LED, !digitalRead(LED));
+}
+
+// 按下按键即会执行该函数
+void button2_callback(const String & state) {
+BLINKER_LOG("get button state: ", state);
+digitalWrite(LED1, !digitalRead(LED1));
+}
 
 void heartbeat()
 {
@@ -87,6 +112,16 @@ if (!bmp.begin(0x76)) {
     while (1) {}
   }
 
+sensors.begin();
+
+// 初始化有LED的IO
+pinMode(LED, OUTPUT);
+digitalWrite(LED, HIGH);
+Button1.attach(button1_callback);
+// 初始化有LED的IO
+pinMode(LED1, OUTPUT);
+digitalWrite(LED1, HIGH);
+Button2.attach(button2_callback);
 }
 
 bool checkFlame() {
@@ -100,8 +135,8 @@ bool checkFlame() {
 
 void alert(bool flameDetected) {
   if (flameDetected) {  // 火焰检测到
-    Blinker.push("发现火焰，请注意安全情况！"); 
     Blinker.notify("发现火焰！！");
+    Blinker.wechat("发现火焰，请注意安全情况！"); 
     digitalWrite(BUZZERPIN, HIGH);  // 打开蜂鸣器
     digitalWrite(LEDPIN, HIGH);     // 打开LED灯
   } else {  // 火焰未检测到
@@ -113,8 +148,8 @@ void alert(bool flameDetected) {
 void smokeAlarm() {
   uint32_t adcValue = analogRead(34); // 读取烟雾传感器的模拟值
   if (adcValue > SMOKE_THRESHOLD) { // 判断是否超过阈值
-    Blinker.push("发现烟雾，请注意安全情况！"); 
     Blinker.notify("发现烟雾！！");
+    Blinker.wechat("发现烟雾，请注意安全情况！"); 
     digitalWrite(27, HIGH); // 开启红色LED灯
     tone(26, 2000); // 发出蜂鸣器警报
     delay(500); // 等待500毫秒
@@ -138,6 +173,7 @@ bool check_rain_sensor() {
   } else {
     return false;
   }
+
 }
 
 void loop()
@@ -150,6 +186,7 @@ bool flameDetected = checkFlame();  // 检测火焰状态
   delay(100);  // 等待一段时间后继续进行检测
 
 Blinker.run();// 运行Blinker库
+
 // 读取DHT传感器、LDR传感器和土壤湿度传感器的数据
 unsigned long currentMillis = millis();
 if (currentMillis - previousMillis >= interval) {
@@ -221,7 +258,20 @@ SOIL2.print(soil_read2);
 // 检测雨滴传感器是否有水滴降落
   if (check_rain_sensor()) {
     Serial.println("下雨了哦！");
+    Blinker.wechat("下雨了哦！"); 
   } else {
+  }
+
+sensors.requestTemperatures();
+float soil_temp = sensors.getTempCByIndex(0);
+SOILTEMP.print(soil_temp);
+
+if (l < THRESHOLD) {  // 如果光照强度低于阈值
+    digitalWrite(LED, HIGH);   // 打开第一个 LED 灯
+    digitalWrite(LED1, HIGH);  // 打开第二个 LED 灯
+  } else {  // 如果光照强度高于等于阈值
+    digitalWrite(LED, LOW);   // 关闭第一个 LED 灯
+    digitalWrite(LED1, LOW);  // 关闭第二个 LED 灯
   }
 
 Blinker.delay(500);

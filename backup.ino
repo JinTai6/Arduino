@@ -6,7 +6,6 @@
 #include <Adafruit_BMP085.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <Arduino.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -23,6 +22,8 @@
 #define ONE_WIRE_BUS 4 // 定义DS18B20的引脚为4
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
+#define jidianqi1 25 //定义一个控制小风扇的继电器1号
+#define jidianqi2 0 //板载的继电器用于水泵
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
@@ -46,8 +47,10 @@ BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
 BlinkerNumber SOILTEMP("soil_temp"); //土壤温度
 
-BlinkerButton Button1("btn2");
-BlinkerButton Button2("btn1");
+BlinkerButton Button1("btn1");
+BlinkerButton Button2("btn2");
+BlinkerButton Button3("btn3");
+BlinkerButton Button4("btn4");
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 
@@ -68,6 +71,18 @@ digitalWrite(LED, !digitalRead(LED));
 void button2_callback(const String & state) {
 BLINKER_LOG("get button state: ", state);
 digitalWrite(LED1, !digitalRead(LED1));
+}
+
+// 按下按键即会执行该函数
+void button3_callback(const String & state) {
+BLINKER_LOG("get button state: ", state);
+digitalWrite(jidianqi1, !digitalRead(jidianqi1));
+}
+
+// 按下按键即会执行该函数
+void button4_callback(const String & state) {
+BLINKER_LOG("get button state: ", state);
+digitalWrite(jidianqi2, !digitalRead(jidianqi2));
 }
 
 void heartbeat()
@@ -122,6 +137,14 @@ Button1.attach(button1_callback);
 pinMode(LED1, OUTPUT);
 digitalWrite(LED1, HIGH);
 Button2.attach(button2_callback);
+
+pinMode(jidianqi1,OUTPUT);
+digitalWrite(jidianqi1, HIGH);
+Button3.attach(button3_callback);
+
+pinMode(jidianqi2,OUTPUT);
+digitalWrite(jidianqi2, HIGH);
+Button4.attach(button4_callback);
 }
 
 bool checkFlame() {
@@ -136,7 +159,7 @@ bool checkFlame() {
 void alert(bool flameDetected) {
   if (flameDetected) {  // 火焰检测到
     Blinker.notify("发现火焰！！");
-    Blinker.wechat("发现火焰，请注意安全情况！"); 
+    Blinker.wechat("发现火焰，请注意安全情况！"); // 向微信发送通知
     digitalWrite(BUZZERPIN, HIGH);  // 打开蜂鸣器
     digitalWrite(LEDPIN, HIGH);     // 打开LED灯
   } else {  // 火焰未检测到
@@ -149,7 +172,7 @@ void smokeAlarm() {
   uint32_t adcValue = analogRead(34); // 读取烟雾传感器的模拟值
   if (adcValue > SMOKE_THRESHOLD) { // 判断是否超过阈值
     Blinker.notify("发现烟雾！！");
-    Blinker.wechat("发现烟雾，请注意安全情况！"); 
+    Blinker.wechat("发现烟雾，请注意安全情况！"); // 向微信发送通知
     digitalWrite(27, HIGH); // 开启红色LED灯
     tone(26, 2000); // 发出蜂鸣器警报
     delay(500); // 等待500毫秒
@@ -173,7 +196,6 @@ bool check_rain_sensor() {
   } else {
     return false;
   }
-
 }
 
 void loop()
@@ -217,10 +239,6 @@ float altitude = bmp.readAltitude();
 if (isnan(h) || isnan(t)) {
 BLINKER_LOG("Failed to read from DHT sensor!");
 } else {
-// 打印湿度和温度数据到串口
-BLINKER_LOG("Humidity: ", h, " %");
-BLINKER_LOG("Temperature: ", t, " *C");
-
 humi_read = h;
 temp_read = t;
 }
@@ -232,16 +250,11 @@ soil_read1 = map(s1, 4095, 0, 0, 100);
 // 将土壤湿度传感器2的数据映射到0-100的范围内
 soil_read2 = map(s2, 4095, 0, 0, 100);
 
-// 打印光照和土壤湿度1的数据到串口
-BLINKER_LOG("Light: ", light_read, " %");
-BLINKER_LOG("Soil Moisture 1: ", soil_read1, " %");
-BLINKER_LOG("Soil Moisture 2: ", soil_read2, " %");
-
 // 读取ESP32的电压值
   int sensorValue = analogRead(39);
 
   // 将读取到的ADC值转换成电压值
-  float voltage = sensorValue / 4095.0 * 3.3;
+  float voltage = sensorValue / 4095.0 * 5;
 
 VOLTAGE.print(voltage);   //将电压值传输到Blinker云平台
 
@@ -274,7 +287,6 @@ if (l < THRESHOLD) {  // 如果光照强度低于阈值
     digitalWrite(LED1, LOW);  // 关闭第二个 LED 灯
   }
 
-Blinker.delay(500);
 delay(500);
 }
 }

@@ -9,6 +9,7 @@
 //39号针脚用来测量设备电压
 //32的I2C的地址是和LCD 1602A的屏幕的显示
 //0x67的I2C地址是用于BMP180用来测量大气压强和海拔高度的使用
+//25和0是来控制两个继电器来分别控制小风扇和水泵的继电器
 #define BLINKER_WIFI
 #include <Blinker.h>
 #include <DHT.h>

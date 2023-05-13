@@ -18,6 +18,7 @@
 #include <Adafruit_BMP085.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <NTPClient.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -32,10 +33,11 @@
 #define V_PIN 39 //测量设备电压要用到的针脚
 #define RAIN_SENSOR_PIN 35 //雨滴传感器针脚
 #define ONE_WIRE_BUS 4 // 定义DS18B20的引脚为4
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
 #define jidianqi1 25 //定义一个控制小风扇的继电器1号
 #define jidianqi2 0 //板载的继电器用于水泵
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
@@ -66,12 +68,9 @@ BlinkerButton Button4("btn4");
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 
-float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0;
+float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0,soil_temp = 0;
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
-int counter = 0;
-
-const int THRESHOLD = 15;  // 设定的光照强度阈值
 
 // 按下按键即会执行该函数
 void button1_callback(const String & state) {
@@ -113,6 +112,7 @@ Blinker.dataStorage("humi", humi_read); // 存储湿度数据
 Blinker.dataStorage("light", light_read); // 存储光照数据
 Blinker.dataStorage("soil1", soil_read1); // 存储土壤湿度数据1
 Blinker.dataStorage("soil2", soil_read2); // 存储土壤湿度数据2
+Blinker.dataStorage("soil_temp", soil_temp); // 存储土壤湿度数据2
 }
 
 void setup()
@@ -143,20 +143,21 @@ sensors.begin();
 
 // 初始化有LED的IO
 pinMode(LED, OUTPUT);
-digitalWrite(LED, HIGH);
+digitalWrite(LED, LOW);
 Button1.attach(button1_callback);
 // 初始化有LED的IO
 pinMode(LED1, OUTPUT);
-digitalWrite(LED1, HIGH);
+digitalWrite(LED1, LOW);
 Button2.attach(button2_callback);
 
 pinMode(jidianqi1,OUTPUT);
-digitalWrite(jidianqi1, HIGH);
+digitalWrite(jidianqi1, LOW);
 Button3.attach(button3_callback);
 
 pinMode(jidianqi2,OUTPUT);
-digitalWrite(jidianqi2, HIGH);
+digitalWrite(jidianqi2, LOW);
 Button4.attach(button4_callback);
+
 }
 
 bool checkFlame() {
@@ -234,7 +235,19 @@ int s2 = analogRead(SOILPIN2);
 float temperature = bmp.readTemperature();
 float pressure = bmp.readPressure();
 float altitude = bmp.readAltitude();
+sensors.requestTemperatures();
+float soil_temp = sensors.getTempCByIndex(0);
+SOILTEMP.print(soil_temp);
 
+// 如果无法读取DHT传感器的数据
+if (isnan(h) || isnan(t)) {
+BLINKER_LOG("Failed to read from DHT sensor!");
+} else {
+humi_read = h;
+temp_read = t;
+}
+
+  lcd.clear();                     //清楚屏幕内容
   lcd.setCursor(0,0);              // 将光标移动到第一行第一列
   lcd.print("Temp:");              // 打印"Temp:"
   lcd.print(t);                    // 打印温度值
@@ -246,14 +259,6 @@ float altitude = bmp.readAltitude();
   lcd.print("%");                  // 打印湿度单位 "%"
   
   delay(1000);                     // 延迟5秒
-
-// 如果无法读取DHT传感器的数据
-if (isnan(h) || isnan(t)) {
-BLINKER_LOG("Failed to read from DHT sensor!");
-} else {
-humi_read = h;
-temp_read = t;
-}
 
 // 将LDR传感器的数据映射到0-100的范围内
 light_read = map(l, 0, 4095, 100, 0);
@@ -287,18 +292,7 @@ SOIL2.print(soil_read2);
   } else {
   }
 
-sensors.requestTemperatures();
-float soil_temp = sensors.getTempCByIndex(0);
-SOILTEMP.print(soil_temp);
-
-if (l < THRESHOLD) {  // 如果光照强度低于阈值
-    digitalWrite(LED, HIGH);   // 打开第一个 LED 灯
-    digitalWrite(LED1, HIGH);  // 打开第二个 LED 灯
-  } else {  // 如果光照强度高于等于阈值
-    digitalWrite(LED, LOW);   // 关闭第一个 LED 灯
-    digitalWrite(LED1, LOW);  // 关闭第二个 LED 灯
-  }
-
 delay(500);
+Blinker.delay(1000);
 }
 }

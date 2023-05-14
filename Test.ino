@@ -18,7 +18,7 @@
 #include <Adafruit_BMP085.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <NTPClient.h>
+#include <time.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -35,6 +35,10 @@
 #define ONE_WIRE_BUS 4 // 定义DS18B20的引脚为4
 #define jidianqi1 25 //定义一个控制小风扇的继电器1号
 #define jidianqi2 0 //板载的继电器用于水泵
+#define buttonPin 17 // 按钮引脚
+
+int currentPage = 0; // 当前显示的页面
+unsigned long lastButtonPressTime = 0; // 上一次按下按钮的时间
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
@@ -191,6 +195,9 @@ pinMode(jidianqi2,OUTPUT);
 digitalWrite(jidianqi2, LOW);
 Button4.attach(button4_callback);
 
+pinMode(buttonPin, INPUT_PULLUP);
+configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+
 }
 
 bool checkFlame() {
@@ -280,18 +287,97 @@ humi_read = h;
 temp_read = t;
 }
 
-  lcd.clear();                     //清楚屏幕内容
-  lcd.setCursor(0,0);              // 将光标移动到第一行第一列
-  lcd.print("Temp:");              // 打印"Temp:"
-  lcd.print(t);                    // 打印温度值
-  lcd.print((char)223);            // 打印温度单位 "°"
-  lcd.print("C");                  // 打印温度单位 "C"
-  lcd.setCursor(0,1);              // 将光标移动到第二行第一列
-  lcd.print("Humidity:");          // 打印"Humidity:"
-  lcd.print(h);                    // 打印湿度值
-  lcd.print("%");                  // 打印湿度单位 "%"
-  
-  delay(1000);                     // 延迟5秒
+// 检查按钮是否被按下
+if (digitalRead(buttonPin) == LOW) {
+  // 如果按钮被按下，则更新当前显示的页面
+  currentPage = (currentPage + 1) % 5;
+  lastButtonPressTime = millis();
+  delay(200); // 去抖
+}
+
+// 如果按钮按下时间超过10秒，则返回时间页面
+if (millis() - lastButtonPressTime > 10000) {
+  currentPage = 0;
+}
+
+// 获取当前时间
+time_t now = time(nullptr);
+struct tm *timeinfo = localtime(&now);
+
+// 根据当前显示的页面更新LCD屏幕上的内容
+lcd.clear();
+switch (currentPage) {
+  case 0:
+    // 在LCD屏幕上显示当前时间
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Date:");
+    lcd.print(timeinfo->tm_year + 1900);
+    lcd.print("-");
+    lcd.print(timeinfo->tm_mon + 1);
+    lcd.print("-");
+    lcd.print(timeinfo->tm_mday);
+    lcd.setCursor(0, 1);
+    lcd.print("Time:");
+    if (timeinfo->tm_hour < 10) lcd.print("0");
+    lcd.print(timeinfo->tm_hour);
+    lcd.print(":");
+    if (timeinfo->tm_min < 10) lcd.print("0");
+    lcd.print(timeinfo->tm_min);
+    break;
+case 1:
+    // 显示温度和湿度
+    lcd.clear(); // 清除屏幕上的旧内容
+    lcd.setCursor(0,0);              // 将光标移动到第一行第一列
+    lcd.print("Temp:");              // 打印"Temp:"
+    lcd.print(t);                    // 打印温度值
+    lcd.print((char)223);            // 打印温度单位 "°"
+    lcd.print("C");                  // 打印温度单位 "C"
+    lcd.setCursor(0,1);              // 将光标移动到第二行第一列
+    lcd.print("Humidity:");              // 打印"Humidity:"
+    lcd.print(h);                    // 打印湿度值
+    lcd.print("%");                  // 打印湿度单位 "%"
+    break;
+  case 2:
+    // 显示光照和土壤温度
+    lcd.clear(); // 清除屏幕上的旧内容
+    lcd.setCursor(0,0);              // 将光标移动到第一行第一列
+    lcd.print("Light:");             // 打印"Light:"
+    lcd.print(light_read);           // 打印温度值
+    lcd.print("%");                  // 打印湿度单位 "%"
+    lcd.setCursor(0,1);              // 将光标移动到第二行第一列
+    lcd.print("SoilTemp:");           // 打印"soil_temp:"
+    lcd.print(soil_temp);            // 打印湿度值
+    lcd.print((char)223);            // 打印温度单位 "°"
+    lcd.print("C");                  // 打印温度单位 "C"
+    break;
+  case 3:
+    // 显示土壤的表层温度和底层温度
+    lcd.clear(); // 清除屏幕上的旧内容
+    lcd.setCursor(0,0);              // 将光标移动到第一行第一列
+    lcd.print("SurHumi:");        // 打印"SurfaceTemp"
+    lcd.print(soil_read1);
+    lcd.print((char)223);            // 打印温度单位 "°"
+    lcd.print("C");                  // 打印温度单位 "C"
+    lcd.setCursor(0,1);              // 将光标移动到第二行第一列
+    lcd.print("BotHumi:");        // 打印"BottomTemp:"
+    lcd.print(soil_read2);
+    lcd.print((char)223);            // 打印温度单位 "°"
+    lcd.print("C");                  // 打印温度单位 "C"
+    break;
+  case 4:
+    // 显示大气压强和海拔
+    lcd.clear(); // 清除屏幕上的旧内容
+    lcd.setCursor(0,0);              // 将光标移动到第一行第一列
+    lcd.print("Pre:");           // 打印"Pressure:"
+    lcd.print(pressure);             // 
+    lcd.print("Pa");                 // 
+    lcd.setCursor(0,1);              // 将光标移动到第二行第一列
+    lcd.print("Alt:");           //
+    lcd.print(altitude);             //
+    lcd.print(" M");                  //
+    break;
+}
 
 // 将LDR传感器的数据映射到0-100的范围内
 light_read = map(l, 0, 4095, 100, 0);
@@ -341,7 +427,7 @@ if (light2_auto) {
   }
 }
 if (fan_auto) {
-  if (temp_read > 30) {
+  if (t > 30) {
     digitalWrite(jidianqi1, HIGH);
   } else {
     digitalWrite(jidianqi1, LOW);

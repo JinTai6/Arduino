@@ -18,7 +18,7 @@
 #include <Adafruit_BMP085.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <NTPClient.h>
+#include <time.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -33,10 +33,15 @@
 #define V_PIN 39 //测量设备电压要用到的针脚
 #define RAIN_SENSOR_PIN 35 //雨滴传感器针脚
 #define ONE_WIRE_BUS 4 // 定义DS18B20的引脚为4
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
 #define jidianqi1 25 //定义一个控制小风扇的继电器1号
 #define jidianqi2 0 //板载的继电器用于水泵
+#define buttonPin 17 // 按钮引脚
+
+int currentPage = 0; // 当前显示的页面
+unsigned long lastButtonPressTime = 0; // 上一次按下按钮的时间
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
 LiquidCrystal_I2C lcd(32,16,2);  // 设置I2C地址和屏幕行列数
 
@@ -46,11 +51,10 @@ Adafruit_BMP085 bmp; //设置BMP180传感器的型号
 
 #define SMOKE_THRESHOLD 1200 // 设置烟雾传感器阈值
 
-#define TOUCH_PIN 39 // 触摸传感器引脚
-#define TOUCH_THRESHOLD 50 // 触摸传感器阈值
-
-int currentPage = 0; // 当前显示的页面编号
-unsigned long lastTouchTime = 0; // 上次触摸传感器的时间
+bool light1_auto = true; // 补光灯1是否自动控制
+bool light2_auto = true; // 补光灯2是否自动控制
+bool fan_auto = true; // 小风扇是否自动控制
+bool pump_auto = true; // 水泵是否自动控制
 
 char auth[] = "40a629d880e0"; // Blinker授权码
 char ssid[] = "JinTai"; // WIFI名称
@@ -73,35 +77,60 @@ BlinkerButton Button4("btn4");
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 
-float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0;
+float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0,soil_temp = 0;
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
-int counter = 0;
-
-const int THRESHOLD = 25;  // 设定的光照强度阈值
 
 // 按下按键即会执行该函数
 void button1_callback(const String & state) {
-BLINKER_LOG("get button state: ", state);
-digitalWrite(LED, !digitalRead(LED));
+  BLINKER_LOG("get button state: ", state);
+  if (light1_auto) {
+    // 如果补光灯1处于自动控制模式，则切换到手动控制模式
+    light1_auto = false;
+    digitalWrite(LED, !digitalRead(LED));
+  } else {
+    // 如果补光灯1处于手动控制模式，则切换到自动控制模式
+    light1_auto = true;
+  }
 }
 
 // 按下按键即会执行该函数
 void button2_callback(const String & state) {
-BLINKER_LOG("get button state: ", state);
-digitalWrite(LED1, !digitalRead(LED1));
+  BLINKER_LOG("get button state: ", state);
+  if (light2_auto) {
+    // 如果补光灯2处于自动控制模式，则切换到手动控制模式
+    light2_auto = false;
+    digitalWrite(LED1, !digitalRead(LED1));
+  } else {
+    // 如果补光灯2处于手动控制模式，则切换到自动控制模式
+    light2_auto = true;
+  }
 }
 
 // 按下按键即会执行该函数
 void button3_callback(const String & state) {
-BLINKER_LOG("get button state: ", state);
-digitalWrite(jidianqi1, !digitalRead(jidianqi1));
+  BLINKER_LOG("get button state: ", state);
+  if (fan_auto) {
+    // 如果小风扇处于自动控制模式，则切换到手动控制模式
+    fan_auto = false;
+    digitalWrite(jidianqi1, !digitalRead(jidianqi1));
+  } else {
+    // 如果小风扇处于手动控制模式，则切换到自动控制模式
+    fan_auto = true;
+  }
 }
 
 // 按下按键即会执行该函数
 void button4_callback(const String & state) {
-BLINKER_LOG("get button state: ", state);
-digitalWrite(jidianqi2, !digitalRead(jidianqi2));
+  BLINKER_LOG("get button state: ", state);
+  if (pump_auto) {
+    // 如果水泵处于自动控制模式，则切换到手动控制模式
+    pump_auto = false;
+    digitalWrite(jidianqi2, !digitalRead(jidianqi2));
+  } else {
+    // 如果水泵处于手动控制模式，则切换到自动控制模式
+    pump_auto = true;
+  }
 }
 
 void heartbeat()
@@ -120,6 +149,7 @@ Blinker.dataStorage("humi", humi_read); // 存储湿度数据
 Blinker.dataStorage("light", light_read); // 存储光照数据
 Blinker.dataStorage("soil1", soil_read1); // 存储土壤湿度数据1
 Blinker.dataStorage("soil2", soil_read2); // 存储土壤湿度数据2
+Blinker.dataStorage("soil_temp", soil_temp); // 存储土壤湿度数据2
 }
 
 void setup()
@@ -147,26 +177,27 @@ if (!bmp.begin(0x76)) {
   }
 
 sensors.begin();
-pinMode(TOUCH_PIN, INPUT);
 
 // 初始化有LED的IO
 pinMode(LED, OUTPUT);
-digitalWrite(LED, HIGH);
+digitalWrite(LED, LOW);
 Button1.attach(button1_callback);
 // 初始化有LED的IO
 pinMode(LED1, OUTPUT);
-digitalWrite(LED1, HIGH);
+digitalWrite(LED1, LOW);
 Button2.attach(button2_callback);
 
 pinMode(jidianqi1,OUTPUT);
-digitalWrite(jidianqi1, HIGH);
+digitalWrite(jidianqi1, LOW);
 Button3.attach(button3_callback);
 
 pinMode(jidianqi2,OUTPUT);
-digitalWrite(jidianqi2, HIGH);
+digitalWrite(jidianqi2, LOW);
 Button4.attach(button4_callback);
 
-configTime(0, 0, "pool.ntp.org"); // 使用pool.ntp.org作为NTP服务器
+pinMode(buttonPin, INPUT_PULLUP);
+configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+
 }
 
 bool checkFlame() {
@@ -248,31 +279,53 @@ sensors.requestTemperatures();
 float soil_temp = sensors.getTempCByIndex(0);
 SOILTEMP.print(soil_temp);
 
-// 检测触摸传感器是否被触摸
-if (touchRead(TOUCH_PIN) < TOUCH_THRESHOLD) {
-  currentPage++; // 增加页面编号
-  lastTouchTime = millis(); // 更新上次触摸传感器的时间
+// 如果无法读取DHT传感器的数据
+if (isnan(h) || isnan(t)) {
+BLINKER_LOG("Failed to read from DHT sensor!");
+} else {
+humi_read = h;
+temp_read = t;
 }
 
-// 检查当前时间与上次触摸传感器的时间之差是否超过10秒
-if (millis() - lastTouchTime > 10000) {
-  currentPage = 0; // 将页面编号重置为0
+// 检查按钮是否被按下
+if (digitalRead(buttonPin) == LOW) {
+  // 如果按钮被按下，则更新当前显示的页面
+  currentPage = (currentPage + 1) % 5;
+  lastButtonPressTime = millis();
+  delay(200); // 去抖
 }
 
-// 根据页面编号来决定在LCD屏幕上显示哪些内容
+// 如果按钮按下时间超过10秒，则返回时间页面
+if (millis() - lastButtonPressTime > 10000) {
+  currentPage = 0;
+}
+
+// 获取当前时间
+time_t now = time(nullptr);
+struct tm *timeinfo = localtime(&now);
+
+// 根据当前显示的页面更新LCD屏幕上的内容
+lcd.clear();
 switch (currentPage) {
   case 0:
-  // 显示时间
-  struct tm timeinfo;
-  if (getLocalTime(&timeinfo)) {
-    char timeString[20];
-    strftime(timeString, sizeof(timeString), "%Y.%m.%d %H:%M", &timeinfo);
-
+    // 在LCD屏幕上显示当前时间
+    lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print(timeString);
-  }
+    lcd.print("Date:");
+    lcd.print(timeinfo->tm_year + 1900);
+    lcd.print("-");
+    lcd.print(timeinfo->tm_mon + 1);
+    lcd.print("-");
+    lcd.print(timeinfo->tm_mday);
+    lcd.setCursor(0, 1);
+    lcd.print("Time:");
+    if (timeinfo->tm_hour < 10) lcd.print("0");
+    lcd.print(timeinfo->tm_hour);
+    lcd.print(":");
+    if (timeinfo->tm_min < 10) lcd.print("0");
+    lcd.print(timeinfo->tm_min);
     break;
-  case 1:
+case 1:
     // 显示温度和湿度
     lcd.clear(); // 清除屏幕上的旧内容
     lcd.setCursor(0,0);              // 将光标移动到第一行第一列
@@ -323,16 +376,7 @@ switch (currentPage) {
     lcd.print("Alt:");           //
     lcd.print(altitude);             //
     lcd.print(" M");                  //
-    currentPage = 0; // 将页面编号重置为0
     break;
-}
-
-// 如果无法读取DHT传感器的数据
-if (isnan(h) || isnan(t)) {
-BLINKER_LOG("Failed to read from DHT sensor!");
-} else {
-humi_read = h;
-temp_read = t;
 }
 
 // 将LDR传感器的数据映射到0-100的范围内
@@ -367,7 +411,37 @@ SOIL2.print(soil_read2);
   } else {
   }
 
+//以下代码来自动控制补光灯、水泵和小风扇
+if (light1_auto) {
+  if (light_read < 20) {
+    digitalWrite(LED, HIGH);
+  } else {
+    digitalWrite(LED, LOW);
+  }
+}
+if (light2_auto) {
+  if (light_read < 20) {
+    digitalWrite(LED1, HIGH);
+  } else {
+    digitalWrite(LED1, LOW);
+  }
+}
+if (fan_auto) {
+  if (t > 30) {
+    digitalWrite(jidianqi1, HIGH);
+  } else {
+    digitalWrite(jidianqi1, LOW);
+  }
+}
+if (pump_auto) {
+  if ((soil_read1 + soil_read2) / 2 < 30) {
+    digitalWrite(jidianqi2, HIGH);
+  } else {
+    digitalWrite(jidianqi2, LOW);
+  }
+}
+
 delay(500);
-Blinker.delay(1000);
+Blinker.delay(500);
 }
 }

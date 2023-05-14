@@ -47,6 +47,11 @@ Adafruit_BMP085 bmp; //设置BMP180传感器的型号
 
 #define SMOKE_THRESHOLD 1200 // 设置烟雾传感器阈值
 
+bool light1_auto = true; // 补光灯1是否自动控制
+bool light2_auto = true; // 补光灯2是否自动控制
+bool fan_auto = true; // 小风扇是否自动控制
+bool pump_auto = true; // 水泵是否自动控制
+
 char auth[] = "40a629d880e0"; // Blinker授权码
 char ssid[] = "JinTai"; // WIFI名称
 char pswd[] = "j12345678"; // WIFI密码
@@ -74,26 +79,54 @@ const unsigned long interval = 2000;
 
 // 按下按键即会执行该函数
 void button1_callback(const String & state) {
-BLINKER_LOG("get button state: ", state);
-digitalWrite(LED, !digitalRead(LED));
+  BLINKER_LOG("get button state: ", state);
+  if (light1_auto) {
+    // 如果补光灯1处于自动控制模式，则切换到手动控制模式
+    light1_auto = false;
+    digitalWrite(LED, !digitalRead(LED));
+  } else {
+    // 如果补光灯1处于手动控制模式，则切换到自动控制模式
+    light1_auto = true;
+  }
 }
 
 // 按下按键即会执行该函数
 void button2_callback(const String & state) {
-BLINKER_LOG("get button state: ", state);
-digitalWrite(LED1, !digitalRead(LED1));
+  BLINKER_LOG("get button state: ", state);
+  if (light2_auto) {
+    // 如果补光灯2处于自动控制模式，则切换到手动控制模式
+    light2_auto = false;
+    digitalWrite(LED1, !digitalRead(LED1));
+  } else {
+    // 如果补光灯2处于手动控制模式，则切换到自动控制模式
+    light2_auto = true;
+  }
 }
 
 // 按下按键即会执行该函数
 void button3_callback(const String & state) {
-BLINKER_LOG("get button state: ", state);
-digitalWrite(jidianqi1, !digitalRead(jidianqi1));
+  BLINKER_LOG("get button state: ", state);
+  if (fan_auto) {
+    // 如果小风扇处于自动控制模式，则切换到手动控制模式
+    fan_auto = false;
+    digitalWrite(jidianqi1, !digitalRead(jidianqi1));
+  } else {
+    // 如果小风扇处于手动控制模式，则切换到自动控制模式
+    fan_auto = true;
+  }
 }
 
 // 按下按键即会执行该函数
 void button4_callback(const String & state) {
-BLINKER_LOG("get button state: ", state);
-digitalWrite(jidianqi2, !digitalRead(jidianqi2));
+  BLINKER_LOG("get button state: ", state);
+  if (pump_auto) {
+    // 如果水泵处于自动控制模式，则切换到手动控制模式
+    pump_auto = false;
+    digitalWrite(jidianqi2, !digitalRead(jidianqi2));
+  } else {
+    // 如果水泵处于手动控制模式，则切换到自动控制模式
+    pump_auto = true;
+  }
 }
 
 void heartbeat()
@@ -292,7 +325,37 @@ SOIL2.print(soil_read2);
   } else {
   }
 
+//以下代码来自动控制补光灯、水泵和小风扇
+if (light1_auto) {
+  if (light_read < 20) {
+    digitalWrite(LED, HIGH);
+  } else {
+    digitalWrite(LED, LOW);
+  }
+}
+if (light2_auto) {
+  if (light_read < 20) {
+    digitalWrite(LED1, HIGH);
+  } else {
+    digitalWrite(LED1, LOW);
+  }
+}
+if (fan_auto) {
+  if (temp_read > 30) {
+    digitalWrite(jidianqi1, HIGH);
+  } else {
+    digitalWrite(jidianqi1, LOW);
+  }
+}
+if (pump_auto) {
+  if ((soil_read1 + soil_read2) / 2 < 30) {
+    digitalWrite(jidianqi2, HIGH);
+  } else {
+    digitalWrite(jidianqi2, LOW);
+  }
+}
+
 delay(500);
-Blinker.delay(1000);
+Blinker.delay(500);
 }
 }

@@ -19,6 +19,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <time.h>
+#include <HX711>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -39,6 +40,8 @@
 
 int currentPage = 0; // 当前显示的页面
 unsigned long lastButtonPressTime = 0; // 上一次按下按钮的时间
+
+#define calibration_factor -7050.0 // 通过SparkFun_HX711_Calibration示例找到校准系数
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);

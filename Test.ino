@@ -19,7 +19,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <time.h>
-#include <HX711>
+#include <TimeLib.h>
 
 #define DHTPIN 15 // 温湿度传感器引脚
 #define LDRPIN 36 // 光敏电阻引脚
@@ -40,8 +40,6 @@
 
 int currentPage = 0; // 当前显示的页面
 unsigned long lastButtonPressTime = 0; // 上一次按下按钮的时间
-
-#define calibration_factor -7050.0 // 通过SparkFun_HX711_Calibration示例找到校准系数
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
@@ -72,6 +70,7 @@ BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
 BlinkerNumber SOILTEMP("soil_temp"); //土壤温度
+BlinkerNumber RUNTIME("run_time"); // 增加一个BlinkerNumber对象来表示运行时间
 
 BlinkerButton Button1("btn1");
 BlinkerButton Button2("btn2");
@@ -83,6 +82,7 @@ DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0,soil_temp = 0;
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
+
 
 // 按下按键即会执行该函数
 void button1_callback(const String & state) {
@@ -216,6 +216,7 @@ void alert(bool flameDetected) {
   if (flameDetected) {  // 火焰检测到
     Blinker.notify("发现火焰！！");
     Blinker.wechat("发现火焰，请注意安全情况！"); // 向微信发送通知
+    Blinker.vibrate();
     digitalWrite(BUZZERPIN, HIGH);  // 打开蜂鸣器
     digitalWrite(LEDPIN, HIGH);     // 打开LED灯
   } else {  // 火焰未检测到
@@ -229,6 +230,7 @@ void smokeAlarm() {
   if (adcValue > SMOKE_THRESHOLD) { // 判断是否超过阈值
     Blinker.notify("发现烟雾！！");
     Blinker.wechat("发现烟雾，请注意安全情况！"); // 向微信发送通知
+    Blinker.vibrate();
     digitalWrite(27, HIGH); // 开启红色LED灯
     tone(26, 2000); // 发出蜂鸣器警报
     delay(500); // 等待500毫秒
@@ -410,6 +412,7 @@ SOIL2.print(soil_read2);
 // 检测雨滴传感器是否有水滴降落
   if (check_rain_sensor()) {
     Serial.println("下雨了哦！");
+    Blinker.vibrate();
     Blinker.wechat("下雨了哦！"); 
   } else {
   }
@@ -430,7 +433,7 @@ if (light2_auto) {
   }
 }
 if (fan_auto) {
-  if (t > 30) {
+  if (t > 40) {
     digitalWrite(jidianqi1, HIGH);
   } else {
     digitalWrite(jidianqi1, LOW);
@@ -443,6 +446,8 @@ if (pump_auto) {
     digitalWrite(jidianqi2, LOW);
   }
 }
+
+time_t run_time = Blinker.runTime();
 
 delay(500);
 Blinker.delay(500);

@@ -70,7 +70,7 @@ BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
 BlinkerNumber SOILTEMP("soil_temp"); //土壤温度
-BlinkerNumber RUNTIME("run_time"); // 增加一个BlinkerNumber对象来表示运行时间
+BlinkerNumber RUNTIME("run_time"); //上传设备运行时间
 
 BlinkerButton Button1("btn1");
 BlinkerButton Button2("btn2");
@@ -79,7 +79,7 @@ BlinkerButton Button4("btn4");
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 
-float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0,soil_temp = 0;
+float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0,soil_temp = 0,run_tme = 0;
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
 
@@ -242,13 +242,11 @@ void smokeAlarm() {
 
 // 检测雨滴传感器是否有水滴降落
 bool check_rain_sensor() {
-  // 将A0口配置为模拟输入模式
-  pinMode(RAIN_SENSOR_PIN, INPUT);
-
-  // 读取A0口输入电压值
-  int sensor_value = digitalRead(RAIN_SENSOR_PIN);
-
-  // 判断输入电压是否超过阈值，若超过则说明有水滴降落，返回true，否则返回false
+// 将A0口配置为模拟输入模式
+pinMode(RAIN_SENSOR_PIN, INPUT);
+// 读取A0口输入电压值
+int sensor_value = digitalRead(RAIN_SENSOR_PIN);
+// 判断输入电压是否超过阈值，若超过则说明有水滴降落，返回true，否则返回false
   if (sensor_value == LOW) {
     return true;
   } else {
@@ -392,11 +390,9 @@ soil_read1 = map(s1, 4095, 0, 0, 100);
 soil_read2 = map(s2, 4095, 0, 0, 100);
 
 // 读取ESP32的电压值
-  int sensorValue = analogRead(39);
-
-  // 将读取到的ADC值转换成电压值
-  float voltage = sensorValue / 4095.0 * 5;
-
+int sensorValue = analogRead(39);
+// 将读取到的ADC值转换成电压值
+float voltage = sensorValue / 4095.0 * 5;
 VOLTAGE.print(voltage);   //将电压值传输到Blinker云平台
 
 PRE.print(pressure);
@@ -440,7 +436,7 @@ if (fan_auto) {
   }
 }
 if (pump_auto) {
-  if ((soil_read1 + soil_read2) / 2 < 30) {
+  if ((soil_read1 + soil_read2) / 2 < 25) {
     digitalWrite(jidianqi2, HIGH);
   } else {
     digitalWrite(jidianqi2, LOW);
@@ -448,6 +444,7 @@ if (pump_auto) {
 }
 
 time_t run_time = Blinker.runTime();
+RUNTIME.print(run_time);
 
 delay(500);
 Blinker.delay(500);

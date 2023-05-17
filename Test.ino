@@ -70,7 +70,7 @@ BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
 BlinkerNumber SOILTEMP("soil_temp"); //土壤温度
-BlinkerNumber RUNTIME("run_time"); //上传设备运行时间
+BlinkerNumber RUNTIME("run_time_min"); //上传设备运行时间
 
 BlinkerButton Button1("btn1");
 BlinkerButton Button2("btn2");
@@ -79,7 +79,7 @@ BlinkerButton Button4("btn4");
 
 DHT dht(DHTPIN, DHTTYPE); // 温湿度传感器对象
 
-float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0,soil_temp = 0,run_tme = 0;
+float humi_read = 0, temp_read = 0, light_read = 0, soil_read1 = 0, soil_read2 = 0,soil_temp = 0,run_tme = 0,run_time_min = 0;
 unsigned long previousMillis = 0;
 const unsigned long interval = 2000;
 
@@ -444,7 +444,8 @@ if (pump_auto) {
 }
 
 time_t run_time = Blinker.runTime();
-RUNTIME.print(run_time);
+run_time_min = run_time / 60;
+RUNTIME.print(run_time_min);
 
 delay(500);
 Blinker.delay(500);

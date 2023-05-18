@@ -37,6 +37,7 @@
 #define jidianqi1 25 //定义一个控制小风扇的继电器1号
 #define jidianqi2 0 //板载的继电器用于水泵
 #define buttonPin 17 // 按钮引脚
+#define SMOKE_THRESHOLD 1200 // 设置烟雾传感器阈值
 
 int currentPage = 0; // 当前显示的页面
 unsigned long lastButtonPressTime = 0; // 上一次按下按钮的时间
@@ -50,7 +51,7 @@ Adafruit_BMP085 bmp; //设置BMP180传感器的型号
 
 #define DHTTYPE DHT11 // 温湿度传感器型号
 
-#define SMOKE_THRESHOLD 1200 // 设置烟雾传感器阈值
+#define SMOKE_THRESHOLD 1400 // 设置烟雾传感器阈值
 
 bool light1_auto = true; // 补光灯1是否自动控制
 bool light2_auto = true; // 补光灯2是否自动控制
@@ -70,7 +71,7 @@ BlinkerNumber VOLTAGE("voltage"); //测量设备的电压
 BlinkerNumber PRE("pressure"); //大气压强
 BlinkerNumber ALTITUDE("altitude"); //海拔高度
 BlinkerNumber SOILTEMP("soil_temp"); //土壤温度
-BlinkerNumber RUNTIME("run_time_min"); //上传设备运行时间
+BlinkerNumber RUNTIME("run_time_min"); //设备运行时间
 
 BlinkerButton Button1("btn1");
 BlinkerButton Button2("btn2");
@@ -162,8 +163,9 @@ Serial.begin(115200);// 初始化串口通信
 BLINKER_DEBUG.stream(Serial);// 设置调试信息输出流
 BLINKER_DEBUG.debugAll();// 输出所有调试信息
 
-pinMode(FLAMEPIN, INPUT_PULLUP);
-pinMode(SMOKEPIN, INPUT_PULLUP);
+pinMode(FLAMEPIN, INPUT);
+pinMode(SMOKEPIN, INPUT);
+pinMode(RAIN_SENSOR_PIN, INPUT);
 pinMode(BUZZERPIN, OUTPUT);
 pinMode(LEDPIN, OUTPUT);
 
@@ -203,65 +205,62 @@ configTime(0, 0, "pool.ntp.org", "time.nist.gov");
 
 }
 
-bool checkFlame() {
-  int flameValue = digitalRead(FLAMEPIN);
-  if (flameValue == LOW) {  // 火焰检测到，返回真
-    return true;
-  } else {  // 火焰未检测到，返回假
-    return false;
+//--------------------------------------------------------
+// 烟雾和火焰报警总函数
+void smokeAndFireAlarm() {
+  int flameState = digitalRead(FLAMEPIN); // 读取火焰传感器的数字值
+  uint32_t adcValue = analogRead(SMOKEPIN); // 读取烟雾传感器的模拟值
+  
+  // 检测火焰传感器
+  if (flameState == LOW) {
+    // 火焰报警
+    digitalWrite(BUZZERPIN, HIGH); // 打开蜂鸣器
+    digitalWrite(LEDPIN, HIGH); // 打开LED灯
+    Blinker.vibrate(); // 手机振动
+    Blinker.wechat("发现火焰！发现火焰！请观察安全情况！"); // 微信推送消息
+    Blinker.notify("发现火焰！发现火焰！请观察安全情况！"); // 手机通知消息
+    Serial.println("Fire detected!"); // 输出消息到串口
+  } else { // 如果没有火焰，关闭蜂鸣器和LED灯
+    digitalWrite(BUZZERPIN, LOW);
+    digitalWrite(LEDPIN, LOW);
   }
-}
-
-void alert(bool flameDetected) {
-  if (flameDetected) {  // 火焰检测到
-    Blinker.notify("发现火焰！！");
-    Blinker.wechat("发现火焰，请注意安全情况！"); // 向微信发送通知
-    Blinker.vibrate();
-    digitalWrite(BUZZERPIN, HIGH);  // 打开蜂鸣器
-    digitalWrite(LEDPIN, HIGH);     // 打开LED灯
-  } else {  // 火焰未检测到
-    digitalWrite(BUZZERPIN, LOW);   // 关闭蜂鸣器
-    digitalWrite(LEDPIN, LOW);      // 关闭LED灯
-  }
-}
-
-void smokeAlarm() {
-  uint32_t adcValue = analogRead(34); // 读取烟雾传感器的模拟值
+  
+  // 检测烟雾传感器
   if (adcValue > SMOKE_THRESHOLD) { // 判断是否超过阈值
-    Blinker.notify("发现烟雾！！");
-    Blinker.wechat("发现烟雾，请注意安全情况！"); // 向微信发送通知
-    Blinker.vibrate();
-    digitalWrite(27, HIGH); // 开启红色LED灯
-    tone(26, 2000); // 发出蜂鸣器警报
-    delay(500); // 等待500毫秒
-    noTone(26); // 停止蜂鸣器警报
-  } else {
-    digitalWrite(27, LOW); // 关闭红色LED灯
+    // 烟雾报警
+    digitalWrite(BUZZERPIN, HIGH); // 打开蜂鸣器
+    digitalWrite(LEDPIN, HIGH); // 打开LED灯
+    Blinker.vibrate(); // 手机振动
+    Blinker.wechat("发现烟雾！发现烟雾！请观察安全情况！"); // 微信推送消息
+    Blinker.notify("发现烟雾！发现烟雾！请观察安全情况！"); // 手机通知消息
+    Serial.println("Smoke detected!"); // 输出消息到串口
+  } else { // 如果没有烟雾，关闭蜂鸣器和LED灯
+    digitalWrite(BUZZERPIN, LOW);
+    digitalWrite(LEDPIN, LOW);
   }
 }
+//--------------------------------------------------------
 
-// 检测雨滴传感器是否有水滴降落
-bool check_rain_sensor() {
-// 将A0口配置为模拟输入模式
-pinMode(RAIN_SENSOR_PIN, INPUT);
-// 读取A0口输入电压值
-int sensor_value = digitalRead(RAIN_SENSOR_PIN);
-// 判断输入电压是否超过阈值，若超过则说明有水滴降落，返回true，否则返回false
-  if (sensor_value == LOW) {
-    return true;
-  } else {
-    return false;
+//--------------------------------------------------------
+// 雨滴报警总函数
+void rainAlarm() {
+  int rainState = digitalRead(RAIN_SENSOR_PIN);
+  
+  // 检测雨滴传感器
+  if (rainState == LOW) {
+    Blinker.vibrate();
+    Blinker.wechat("发现雨滴！发现雨滴！请观察安全情况！");
+    Blinker.notify("发现雨滴！发现雨滴！请观察安全情况！");
+    Serial.println("Rain detected!");  // 输出消息到串口
   }
 }
+//--------------------------------------------------------
 
 void loop()
 {
-// 检测烟雾
-  smokeAlarm();
-//检测是否存在火焰
-bool flameDetected = checkFlame();  // 检测火焰状态
-  alert(flameDetected);  // 控制蜂鸣器和LED灯报警
-  delay(100);  // 等待一段时间后继续进行检测
+smokeAndFireAlarm();  // 调用总函数触发烟雾和火焰报警功能
+
+rainAlarm();  // 调用总函数触发雨滴报警功能
 
 Blinker.run();// 运行Blinker库
 
@@ -405,24 +404,16 @@ LIGHT.print(light_read);
 SOIL1.print(soil_read1);
 SOIL2.print(soil_read2);
 
-// 检测雨滴传感器是否有水滴降落
-  if (check_rain_sensor()) {
-    Serial.println("下雨了哦！");
-    Blinker.vibrate();
-    Blinker.wechat("下雨了哦！"); 
-  } else {
-  }
-
 //以下代码来自动控制补光灯、水泵和小风扇
 if (light1_auto) {
-  if (light_read < 20) {
+  if (light_read < 28) {
     digitalWrite(LED, HIGH);
   } else {
     digitalWrite(LED, LOW);
   }
 }
 if (light2_auto) {
-  if (light_read < 20) {
+  if (light_read < 28) {
     digitalWrite(LED1, HIGH);
   } else {
     digitalWrite(LED1, LOW);
